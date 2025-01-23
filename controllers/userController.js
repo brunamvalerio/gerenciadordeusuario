@@ -148,94 +148,116 @@ class UserController {
 
     }
 
-    getValues(formEl){
+// Buscando os valores 
+getValues(formEl){
 
-        let user = {};
-        let isValid = true;
+    // Cria um objeto vazio para armazenar os dados do usuário
+    let user = {};
 
-        [...formEl.elements].forEach(function(field, index){
+    // Variável para verificar se o formulário é válido
+    let isValid = true;
 
-            if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
+    // percorre todos os campos do formulário
+    [...formEl.elements].forEach(function(field, index){
 
-                field.parentElement.classList.add("has-error");
-                isValid = false
+     
+        if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
 
-            }
-
-            if (field.name === "gender") {
-    
-                if (field.checked) {
-                    user[field.name] = field.value
-                }
-    
-            } else if(field.name == "admin") {
-
-                user[field.name] = field.checked;
-
-            } else {
-    
-                user[field.name] = field.value
-    
-            }
-    
-        });
-
-        if (!isValid) {
-            return false;
+            // adiciona a página de erro caso algum campo obrigatório não seja preenchido 
+            field.parentElement.classList.add("has-error");
+           
+            isValid = false;
         }
-    
-        return new User(
-            user.name, 
-            user.gender, 
-            user.birth, 
-            user.country, 
-            user.email, 
-            user.password, 
-            user.photo, 
-            user.admin
-        );
 
-    }
+        if (field.name === "gender") {
 
-    getusersStorage () {
+            // Se o campo de gênero estiver marcado, armazena o valor selecionado
+            if (field.checked) {
+                user[field.name] = field.value;
+            }
 
-        let users = [];
+        } else if(field.name == "admin") {
 
-        if (localStorage.getItem("users")) {
+            // Se o campo for 'admin', armazena se o checkbox está marcado (true ou false)
+            user[field.name] = field.checked;
 
-            users = JSON.parse(localStorage.getItem("users"));
+        } else {
+
+            // Para os outros campos, armazena o valor preenchido
+            user[field.name] = field.value;
 
         }
 
-        return users
+    });
 
-    }
-
-    selectAll() {
-       
-        let users = this.getusersStorage();
-        
-        users.forEach(dataUser => {
-
-            let user = new User();
-
-            user.loadFromJSON(dataUser);
-        
-            this.addLine(user);
-
-        });
-
-    }
     
-    addLine(dataUser) {
-
-        let tr = this.getTr(dataUser);
-
-        this.tableEl.appendChild(tr);
-
-        this.updateCount();
-
+    if (!isValid) {
+        return false;
     }
+
+    // Se o formulário estiver válido, cria um novo objeto User com os dados preenchidos
+    return new User(
+        user.name, 
+        user.gender, 
+        user.birth, 
+        user.country, 
+        user.email, 
+        user.password, 
+        user.photo, 
+        user.admin
+    );
+}
+
+
+
+getusersStorage () {
+
+    // Inicializa um array vazio para armazenar os usuários
+    let users = [];
+
+    if (localStorage.getItem("users")) {
+
+        // Se houver dados, converte a string JSON em um objeto JavaScript
+        users = JSON.parse(localStorage.getItem("users"));
+    }
+
+    
+    return users;
+}
+
+// Função para selecionar e carregar todos os usuários da lista armazenada
+selectAll() {
+
+    // let para obter a lista dos usuários 
+    let users = this.getusersStorage();
+    
+    // Itera sobre cada usuário na lista
+    users.forEach(dataUser => {
+
+        
+        let user = new User();
+
+        // Carrega os dados do usuário no formato JSON para o objeto User
+        user.loadFromJSON(dataUser);
+    
+        // Adiciona uma linha na tabela com os dados do usuário
+        this.addLine(user);
+
+    });
+}
+
+
+addLine(dataUser) {
+
+  
+    let tr = this.getTr(dataUser);
+
+    this.tableEl.appendChild(tr);
+
+    // Atualiza o contador de usuários e administradores
+    this.updateCount();
+}
+
 
     getTr(dataUser, tr = null) {
   // compara os valores e os tipos de dados 
@@ -275,81 +297,102 @@ class UserController {
             }
 
         });
+// Adiciona um ouvinte de evento ao botão "Editar" dentro da linha de tabela (tr)
+tr.querySelector(".btn-edit").addEventListener("click", e => {
 
-        tr.querySelector(".btn-edit").addEventListener("click", e => {
+    // os dados são convertidos dentro do JSON 
+    let json = JSON.parse(tr.dataset.user);
 
-            let json = JSON.parse(tr.dataset.user);
+    // Armazena o índice da linha da tabela no formulário de atualização para saber qual linha estamos editando
+    this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
 
-            this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
+    
+    for (let name in json) {
 
-            for (let name in json) {
+        // Encontra o campo correspondente no formulário de atualização, com base no nome do campo
+        let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
 
-                let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
+        // SE o campo for encontrado o formulário é preenchido 
+        if (field) {
 
-                if (field) {
-
-                    switch (field.type) {
-                        case 'file':
-                            continue;
-                            break;
-                            
-                        case 'radio':
-                            field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "][value=" + json[name] + "]");
-                            field.checked = true;
-                        break;
-
-                        case 'checkbox':
-                            field.checked = json[name];
-                        break;
-
-                        default:
-                            field.value = json[name];
-
-                    }
-
-                    field.value = json[name];
-                }
-
-            }
-
-            this.formUpdateEl.querySelector(".photo").src = json._photo
             
-            this.showPanelUpdate();
+            switch (field.type) {
+                case 'file':
+                    // Se o campo for de tipo 'file', ignora (não é possível preencher via código)
+                    continue;
+                    break;
+                    
+                case 'radio':
+                    // Se o campo for de tipo 'radio', marca o botão de rádio correspondente ao valor armazenado
+                    field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "][value=" + json[name] + "]");
+                    field.checked = true;
+                break;
 
-        });
+                case 'checkbox':
+                    
+                    field.checked = json[name];
+                break;
+
+                default:
+                 
+                    field.value = json[name];
+            }
+        }
+    }
+
+    // Atualiza a imagem de foto do usuário no formulário de atualização
+    this.formUpdateEl.querySelector(".photo").src = json._photo;
+
+    // Exibe o painel de atualização do formulário (provavelmente um modal ou uma seção visível)
+    this.showPanelUpdate();
+});
+
 
     }
 
-    showPanelCreate(){
+showPanelCreate(){
 
-        document.querySelector("#box-user-create").style.display = "block";
-        document.querySelector("#box-user-update").style.display = "none";
+    // Exibe o painel de criação de usuário
+    document.querySelector("#box-user-create").style.display = "block";
+    
+    // Oculta o painel de atualização de usuário
+    document.querySelector("#box-user-update").style.display = "none";
+}
 
-    }
+// 
+showPanelUpdate(){
 
-    showPanelUpdate(){
+    document.querySelector("#box-user-create").style.display = "none";
+    
+    
+    document.querySelector("#box-user-update").style.display = "block";
+}
 
-        document.querySelector("#box-user-create").style.display = "none";
-        document.querySelector("#box-user-update").style.display = "block";
+// Atualiza o número de usuários
+updateCount(){
 
-    }
+    // Iniciando as variáveis 
+    let numberUsers = 0;
+    let numberAdmin = 0;
 
-    updateCount(){
+    // Percorre todas as linhas da tabela (cada linha representa um usuário)
+    [...this.tableEl.children].forEach(tr => {
 
-        let numberUsers = 0;
-        let numberAdmin = 0;
+        // Incrementa o contador de usuários
+        numberUsers++;
 
-        [...this.tableEl.children].forEach(tr => {
+        // Obtém os dados do usuário armazenados na linha 
+        let user = JSON.parse(tr.dataset.user);
 
-            numberUsers++;
+        // Se o usuário for administrador, incrementa o contador de administradores
+        if (user._admin) numberAdmin++;
+    })
 
-            let user = JSON.parse(tr.dataset.user);
+    // Atualiza o número total de usuários exibido na página
+    document.querySelector("#number-users").innerHTML = numberUsers;
 
-            if (user._admin) numberAdmin++;
-        })
+    // Atualiza o número de administradores exibido na página
+    document.querySelector("#number-users-admin").innerHTML = numberAdmin;
+}
 
-        document.querySelector("#number-users").innerHTML = numberUsers;
-        document.querySelector("#number-users-admin").innerHTML = numberAdmin;
-
-    }
 }
